@@ -127,6 +127,7 @@ Dans Render → ton service → onglet **Environment**, tu peux modifier / ajout
 | `PRIVATE_NO_PREFIX` | En privé, répondre à tout (`true`) ou seulement au préfixe (`false`) | `true` |
 | `OWNER_NUMBER` | Ne répondre qu'à ce numéro (ex `33612345678`), vide = tout le monde | vide |
 | `BOT_NUMBER` | Numéro du bot → connexion par code de jumelage. Vide = QR code | vide |
+| `ALLOW_SELF` | Répondre quand TU écris depuis le tél du bot (avec le préfixe) | `true` |
 | `SYSTEM_PROMPT` | La personnalité / les instructions de l'assistant | (défaut fourni) |
 | `GROQ_MODEL` | Le modèle IA | `llama-3.3-70b-versatile` |
 

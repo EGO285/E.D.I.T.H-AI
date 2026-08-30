@@ -50,6 +50,10 @@ Si on te demande quelque chose de factuel que tu ne sais pas, tu le dis honnête
   // Nombre de messages d'historique gardés par conversation.
   historyLength: parseInt(process.env.HISTORY_LENGTH || "8", 10),
 
+  // Répondre aussi quand TU écris depuis le téléphone du bot lui-même,
+  // à condition de mettre le préfixe (ex "!edith ...") — pas de boucle possible.
+  allowSelf: (process.env.ALLOW_SELF || "true") === "true",
+
   port: process.env.PORT || 3000,
 };
 
@@ -189,31 +193,36 @@ async function startBot() {
     for (const msg of messages) {
       try {
         if (!msg.message) continue;
-        if (msg.key.fromMe) continue; // on ignore nos propres messages
 
         const chatId = msg.key.remoteJid;
         if (!chatId || chatId === "status@broadcast") continue;
 
         const isGroup = chatId.endsWith("@g.us");
-        // Numéro de l'expéditeur (dans un groupe c'est participant, sinon remoteJid).
-        const senderJid = isGroup ? msg.key.participant || "" : chatId;
-        const senderNumber = senderJid.split("@")[0].split(":")[0];
-
-        // Filtre "propriétaire" : si défini, ne répondre qu'à lui.
-        if (CONFIG.ownerNumber && senderNumber !== CONFIG.ownerNumber) continue;
+        const fromMe = Boolean(msg.key.fromMe);
 
         let text = extractText(msg);
         if (!text) continue;
 
-        // Décider si on doit répondre.
         const lower = text.toLowerCase();
         const hasPrefix = lower.startsWith(CONFIG.prefix);
 
+        // Numéro de l'expéditeur (pour le filtre owner et les logs).
+        const senderJid = isGroup ? msg.key.participant || "" : chatId;
+        const senderNumber = fromMe
+          ? "moi"
+          : senderJid.split("@")[0].split(":")[0];
+
+        // Décider si on doit répondre.
         let shouldReply = false;
-        if (isGroup) {
-          shouldReply = hasPrefix; // en groupe, préfixe obligatoire
+        if (fromMe) {
+          // Message envoyé depuis le téléphone du bot : on répond UNIQUEMENT si
+          // autorisé ET avec le préfixe. Les réponses du bot n'ont pas de préfixe
+          // => aucune boucle possible.
+          shouldReply = CONFIG.allowSelf && hasPrefix;
         } else {
-          shouldReply = CONFIG.privateNoPrefix || hasPrefix; // en privé, selon config
+          // Filtre "propriétaire" : si défini, ne répondre qu'à lui.
+          if (CONFIG.ownerNumber && senderNumber !== CONFIG.ownerNumber) continue;
+          shouldReply = isGroup ? hasPrefix : CONFIG.privateNoPrefix || hasPrefix;
         }
         if (!shouldReply) continue;
 
