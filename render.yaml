@@ -1,0 +1,26 @@
+# Configuration Render prête à l'emploi.
+# Render lira ce fichier automatiquement (option "Blueprint").
+services:
+  - type: web
+    name: edith-whatsapp
+    runtime: node
+    plan: starter        # ~7$/mois : reste allumé, pas de mise en veille
+    buildCommand: npm install
+    startCommand: npm start
+    disk:
+      name: auth-data
+      mountPath: /data   # session WhatsApp sauvegardée ici
+      sizeGB: 1
+    envVars:
+      - key: AUTH_DIR
+        value: /data/auth
+      - key: GROQ_API_KEY
+        sync: false      # à saisir à la main dans Render (secret)
+      - key: BOT_NAME
+        value: EDITH
+      - key: PREFIX
+        value: "!edith"
+      - key: PRIVATE_NO_PREFIX
+        value: "true"
+      - key: OWNER_NUMBER
+        sync: false

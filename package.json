@@ -1,0 +1,19 @@
+{
+  "name": "edith-whatsapp",
+  "version": "1.0.0",
+  "description": "Assistant IA personnel branché sur WhatsApp (façon EDITH), propulsé par Groq.",
+  "type": "module",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.9",
+    "@hapi/boom": "^10.0.1",
+    "qrcode-terminal": "^0.12.0",
+    "pino": "^9.5.0"
+  }
+}
