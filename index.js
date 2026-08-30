@@ -191,11 +191,15 @@ async function startBot() {
       const loggedOut = code === DisconnectReason.loggedOut;
 
       if (loggedOut) {
-        // Session morte (401) : on l'efface et on repart à zéro pour régénérer
-        // automatiquement un nouveau code de jumelage.
-        console.log(`⚠️  Session expirée (code ${code}). Effacement et régénération d'une nouvelle connexion...`);
+        // Session morte (401) : on coupe proprement l'ancien socket (sinon il tente
+        // d'écrire dans le dossier et plante), on efface la session, on recrée le
+        // dossier vide, puis on repart => nouveau code de jumelage automatique.
+        console.log(`⚠️  Session expirée (code ${code}). Nettoyage et régénération d'une nouvelle connexion...`);
+        try { sock.ev.removeAllListeners(); } catch {}
+        try { sock.end(undefined); } catch {}
         try {
           fs.rmSync(CONFIG.authDir, { recursive: true, force: true });
+          fs.mkdirSync(CONFIG.authDir, { recursive: true });
         } catch (e) {
           console.error("Erreur en effaçant la session:", e.message);
         }
