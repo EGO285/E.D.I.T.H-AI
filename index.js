@@ -1,4 +1,5 @@
 import http from "http";
+import fs from "fs";
 import { Boom } from "@hapi/boom";
 import pino from "pino";
 import qrcode from "qrcode-terminal";
@@ -53,6 +54,12 @@ Si on te demande quelque chose de factuel que tu ne sais pas, tu le dis honnête
   // Répondre aussi quand TU écris depuis le téléphone du bot lui-même,
   // à condition de mettre le préfixe (ex "!edith ...") — pas de boucle possible.
   allowSelf: (process.env.ALLOW_SELF || "true") === "true",
+
+  // Mets à "true" pour EFFACER la session au prochain démarrage (utile si les clés
+  // de chiffrement sont cassées : "Bad MAC"). Il faudra re-jumeler.
+  // ⚠️ REMETS-LE À "false" juste après avoir re-jumelé, sinon tu devras rejumeler
+  //    à chaque redémarrage.
+  resetSession: (process.env.RESET_SESSION || "false") === "true",
 
   port: process.env.PORT || 3000,
 };
@@ -182,8 +189,20 @@ async function startBot() {
     if (connection === "close") {
       const code = new Boom(lastDisconnect?.error)?.output?.statusCode;
       const loggedOut = code === DisconnectReason.loggedOut;
-      console.log(`⚠️  Déconnecté (code ${code}).`, loggedOut ? "Session invalide, il faudra rescanner." : "Reconnexion...");
-      if (!loggedOut) startBot();
+
+      if (loggedOut) {
+        // Session morte (401) : on l'efface et on repart à zéro pour régénérer
+        // automatiquement un nouveau code de jumelage.
+        console.log(`⚠️  Session expirée (code ${code}). Effacement et régénération d'une nouvelle connexion...`);
+        try {
+          fs.rmSync(CONFIG.authDir, { recursive: true, force: true });
+        } catch (e) {
+          console.error("Erreur en effaçant la session:", e.message);
+        }
+      } else {
+        console.log(`⚠️  Déconnecté (code ${code}). Reconnexion...`);
+      }
+      setTimeout(() => startBot(), 2500);
     }
   });
 
@@ -258,6 +277,18 @@ http
     res.end(`${CONFIG.botName} tourne ✅`);
   })
   .listen(CONFIG.port, () => console.log(`🌐 Serveur HTTP sur le port ${CONFIG.port}`));
+
+// Réinitialisation de session (une seule fois au démarrage du process, PAS lors des
+// reconnexions internes). Efface les clés cassées pour repartir propre.
+if (CONFIG.resetSession) {
+  try {
+    fs.rmSync(CONFIG.authDir, { recursive: true, force: true });
+    console.log("🧹 RESET_SESSION actif : session effacée. Un nouveau jumelage sera nécessaire.");
+    console.log("⚠️  Pense à remettre RESET_SESSION=false après le jumelage !");
+  } catch (e) {
+    console.error("Erreur en effaçant la session:", e.message);
+  }
+}
 
 startBot().catch((e) => {
   console.error("Erreur fatale:", e);
