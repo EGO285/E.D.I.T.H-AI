@@ -61,12 +61,15 @@ Render a besoin de lire le code depuis GitHub. Pas de terminal, tout se fait dan
 3. Render te demande de choisir un repo → sélectionne **`edith-whatsapp`**.
    (Il va lire automatiquement le fichier `render.yaml` que je t'ai préparé.)
 4. Render affiche le service `edith-whatsapp` avec le plan **Starter (~7$/mois)** et un disque.
-   Il va te demander de remplir deux valeurs secrètes :
+   Il va te demander de remplir ces valeurs :
    - **`GROQ_API_KEY`** → colle ta clé Groq de l'étape 1.
-   - **`OWNER_NUMBER`** → (optionnel) ton **vrai** numéro perso, format international
-     sans `+` ni espaces (ex `33612345678`). Si tu le remplis, **le bot ne répondra
-     qu'à toi**, où que tu écrives. Laisse **vide** si tu veux qu'il réponde à tout
-     le monde (avec la commande `!edith` dans les groupes).
+   - **`BOT_NUMBER`** → le numéro **du bot** (celui que tu connectes), format
+     international sans `+` ni espaces (ex `33612345678`). Ça active la connexion
+     par **code de jumelage** (plus simple que le QR). Laisse vide si tu préfères
+     le QR code.
+   - **`OWNER_NUMBER`** → (optionnel) ton **vrai** numéro perso, même format. Si tu
+     le remplis, **le bot ne répondra qu'à toi**, où que tu écrives. Laisse **vide**
+     si tu veux qu'il réponde à tout le monde (avec la commande `!edith` en groupe).
 5. Clique **Apply** / **Create**.
 
 Render installe tout et démarre le bot. Ça prend 1-3 minutes.
@@ -77,21 +80,31 @@ Render installe tout et démarre le bot. Ça prend 1-3 minutes.
 
 ---
 
-## ÉTAPE 4 — Connecter WhatsApp (le QR code)
+## ÉTAPE 4 — Connecter WhatsApp
+
+### 🔑 Méthode recommandée : code de jumelage (si tu as rempli `BOT_NUMBER`)
 
 1. Dans Render, ouvre ton service → onglet **Logs**.
-2. Attends de voir apparaître un **QR code en ASCII** (un carré de symboles) avec le
-   message `📲 SCANNE CE QR CODE...`.
-3. Sur ton téléphone (le numéro du bot) : **WhatsApp → Réglages → Appareils connectés
-   → Connecter un appareil**.
-4. Scanne le QR affiché dans les logs Render.
-5. Dès que c'est bon, tu verras dans les logs : `✅ EDITH est connecté à WhatsApp !`
+2. Attends de voir apparaître un bloc avec :
+   ```
+   🔑  CODE DE JUMELAGE : ABCD-1234
+   ```
+3. Sur le téléphone **du bot** : **WhatsApp → Réglages → Appareils connectés →
+   Connecter un appareil → Connecter avec le numéro de téléphone**.
+4. Saisis le **code à 8 caractères** affiché dans les logs.
+5. Dès que c'est bon : `✅ EDITH est connecté à WhatsApp !`
+
+> Le code est valable quelques minutes. S'il expire, redémarre le service
+> (**Manual Deploy → Restart**) pour en générer un nouveau.
+
+### 📲 Méthode alternative : QR code (si `BOT_NUMBER` est vide)
+
+1. Onglet **Logs** → attends le **QR code en ASCII** (`📲 SCANNE CE QR CODE...`).
+2. Sur le téléphone du bot : **WhatsApp → Appareils connectés → Connecter un
+   appareil** → scanne le QR.
 
 🎉 **C'est vivant.** La session est sauvegardée sur le disque : tu n'auras
-**pas** à rescanner à chaque redémarrage.
-
-> Si le QR expire avant que tu scannes, pas grave : un nouveau s'affiche
-> automatiquement dans les logs.
+**pas** à te reconnecter à chaque redémarrage.
 
 ---
 
@@ -113,6 +126,7 @@ Dans Render → ton service → onglet **Environment**, tu peux modifier / ajout
 | `PREFIX` | Le mot qui déclenche le bot en groupe | `!edith` |
 | `PRIVATE_NO_PREFIX` | En privé, répondre à tout (`true`) ou seulement au préfixe (`false`) | `true` |
 | `OWNER_NUMBER` | Ne répondre qu'à ce numéro (ex `33612345678`), vide = tout le monde | vide |
+| `BOT_NUMBER` | Numéro du bot → connexion par code de jumelage. Vide = QR code | vide |
 | `SYSTEM_PROMPT` | La personnalité / les instructions de l'assistant | (défaut fourni) |
 | `GROQ_MODEL` | Le modèle IA | `llama-3.3-70b-versatile` |
 

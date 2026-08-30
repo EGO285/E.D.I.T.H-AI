@@ -34,6 +34,11 @@ const CONFIG = {
   // Laisse vide pour répondre à tout le monde.
   ownerNumber: (process.env.OWNER_NUMBER || "").replace(/\D/g, ""),
 
+  // Numéro DU BOT (celui qu'on connecte), format international sans "+" ni espaces
+  // (ex "33612345678"). Si renseigné => connexion par CODE DE JUMELAGE (pairing code)
+  // au lieu du QR code. Laisse vide pour utiliser le QR code classique.
+  botNumber: (process.env.BOT_NUMBER || "").replace(/\D/g, ""),
+
   // Personnalité de l'assistant (system prompt).
   systemPrompt:
     process.env.SYSTEM_PROMPT ||
@@ -123,6 +128,9 @@ async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState(CONFIG.authDir);
   const { version } = await fetchLatestBaileysVersion();
 
+  const usePairing = Boolean(CONFIG.botNumber) && !state.creds.registered;
+  let pairingRequested = false;
+
   const sock = makeWASocket({
     version,
     auth: state,
@@ -131,12 +139,34 @@ async function startBot() {
     syncFullHistory: false,
   });
 
+  // Connexion par CODE DE JUMELAGE : on demande le code juste après le démarrage.
+  if (usePairing) {
+    setTimeout(async () => {
+      if (pairingRequested) return;
+      pairingRequested = true;
+      try {
+        const code = await sock.requestPairingCode(CONFIG.botNumber);
+        const pretty = code?.match(/.{1,4}/g)?.join("-") || code;
+        console.log("\n══════════════════════════════════════════");
+        console.log(`🔑  CODE DE JUMELAGE : ${pretty}`);
+        console.log("══════════════════════════════════════════");
+        console.log("Sur le téléphone du bot :");
+        console.log("WhatsApp > Réglages > Appareils connectés > Connecter un appareil");
+        console.log("> Connecter avec le numéro de téléphone > saisis le code ci-dessus.\n");
+      } catch (e) {
+        console.error("❌ Impossible de générer le code de jumelage :", e.message);
+        console.error("Vérifie que BOT_NUMBER est au bon format (ex 33612345678, sans + ni espaces).");
+      }
+    }, 3000);
+  }
+
   sock.ev.on("creds.update", saveCreds);
 
   sock.ev.on("connection.update", (update) => {
     const { connection, lastDisconnect, qr } = update;
 
-    if (qr) {
+    // On n'affiche le QR que si on N'utilise PAS le code de jumelage.
+    if (qr && !usePairing) {
       console.log("\n📲 SCANNE CE QR CODE depuis WhatsApp > Appareils connectés :\n");
       qrcode.generate(qr, { small: true });
     }
