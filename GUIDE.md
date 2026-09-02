@@ -108,11 +108,22 @@ Render installe tout et démarre le bot. Ça prend 1-3 minutes.
 
 ---
 
-## ÉTAPE 5 — Tester
+## ÉTAPE 5 — Tester et parler à EDITH
 
-- **En privé** : écris un message au numéro du bot → il répond direct.
-- **Dans un groupe** (où le numéro du bot est présent) : écris
-  `!edith c'est quoi la capitale du Japon ?` → il répond.
+Tu parles à EDITH avec la **commande `edith`** (ou `!edith`, ou `/edith`).
+
+- **En privé** : écris-lui directement, sans rien devant → il répond.
+  Ou utilise la commande : `edith raconte-moi une blague`.
+- **Dans un groupe** (où le numéro du bot est présent) : commence toujours par la
+  commande → `edith c'est quoi la capitale du Japon ?`
+
+**Commandes spéciales :**
+
+| Tu écris | Ce que fait EDITH |
+|---|---|
+| `edith help` | Affiche l'aide et la liste des commandes |
+| `edith reset` | Oublie la conversation en cours et repart à zéro |
+| `edith <ta question>` | Répond avec l'IA |
 
 ---
 
@@ -123,13 +134,15 @@ Dans Render → ton service → onglet **Environment**, tu peux modifier / ajout
 | Variable | À quoi ça sert | Défaut |
 |---|---|---|
 | `BOT_NAME` | Le nom de ton assistant | `EDITH` |
-| `PREFIX` | Le mot qui déclenche le bot en groupe | `!edith` |
-| `PRIVATE_NO_PREFIX` | En privé, répondre à tout (`true`) ou seulement au préfixe (`false`) | `true` |
+| `TRIGGERS` | Mots qui déclenchent la commande (séparés par des virgules) | `!edith,/edith,edith` |
+| `PRIVATE_NO_PREFIX` | En privé, répondre à tout (`true`) ou seulement à la commande (`false`) | `true` |
 | `OWNER_NUMBER` | Ne répondre qu'à ce numéro (ex `33612345678`), vide = tout le monde | vide |
 | `BOT_NUMBER` | Numéro du bot → connexion par code de jumelage. Vide = QR code | vide |
-| `ALLOW_SELF` | Répondre quand TU écris depuis le tél du bot (avec le préfixe) | `true` |
+| `ALLOW_SELF` | Répondre quand TU écris depuis le tél du bot (avec la commande) | `true` |
 | `SYSTEM_PROMPT` | La personnalité / les instructions de l'assistant | (défaut fourni) |
-| `GROQ_MODEL` | Le modèle IA | `llama-3.3-70b-versatile` |
+| `AI_PROVIDER` | Cerveau IA : `groq` ou `huggingface` | `groq` |
+| `GROQ_MODEL` | Le modèle Groq | `openai/gpt-oss-20b` |
+| `HF_MODEL` | Le modèle Hugging Face | `meta-llama/Llama-3.1-8B-Instruct` |
 
 Après une modif, clique **Save Changes** → Render redémarre le bot tout seul
 (pas besoin de rescanner le QR).

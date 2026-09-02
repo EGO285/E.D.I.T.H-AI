@@ -22,8 +22,14 @@ const CONFIG = {
   // Nom de ton assistant.
   botName: process.env.BOT_NAME || "EDITH",
 
-  // Préfixe qui déclenche le bot. Ex: "!edith bonjour"
-  prefix: (process.env.PREFIX || "!edith").toLowerCase(),
+  // Mots qui déclenchent le bot (la "commande"), séparés par des virgules.
+  // Par défaut on accepte "edith", "!edith" et "/edith".
+  triggers: (process.env.TRIGGERS || "!edith,/edith,edith")
+    .split(",")
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean)
+    // Les plus longs d'abord pour que "!edith" soit testé avant "edith".
+    .sort((a, b) => b.length - a.length),
 
   // En message privé, répondre à TOUT (true) ou seulement avec le préfixe (false) ?
   privateNoPrefix: (process.env.PRIVATE_NO_PREFIX || "true") === "true",
@@ -146,6 +152,41 @@ function extractText(msg) {
 }
 
 // ────────────────────────────────────────────────────────────
+//  DÉTECTION DE LA COMMANDE (ex: "edith ...", "!edith ...", "/edith ...")
+//  Renvoie le déclencheur trouvé, ou null. On exige que le mot soit isolé
+//  (suivi d'un espace, d'une ponctuation ou de la fin) pour éviter "edithier".
+// ────────────────────────────────────────────────────────────
+function matchTrigger(lowerText) {
+  for (const t of CONFIG.triggers) {
+    if (lowerText === t) return t;
+    if (lowerText.startsWith(t)) {
+      const nextChar = lowerText.charAt(t.length);
+      if (/[\s,.:;!?]/.test(nextChar)) return t;
+    }
+  }
+  return null;
+}
+
+// Texte du message d'aide (commande "edith help").
+function helpText() {
+  const b = CONFIG.botName;
+  const trig = CONFIG.triggers.join(" / ");
+  return (
+    `🤖 *${b}* — ton assistant IA (cerveau : ${AI.label})\n\n` +
+    `Pour me parler, écris simplement ta question.\n` +
+    `• En privé : écris-moi directement.\n` +
+    `• En groupe : commence par *${CONFIG.triggers[0]}* (ex : ${CONFIG.triggers[0]} explique-moi X).\n\n` +
+    `Déclencheurs reconnus : ${trig}\n\n` +
+    `*Commandes :*\n` +
+    `• *${CONFIG.triggers[0]} help* — affiche ce message\n` +
+    `• *${CONFIG.triggers[0]} reset* — oublie notre conversation et repart à zéro\n\n` +
+    `Exemples :\n` +
+    `• ${CONFIG.triggers[0]} raconte-moi une blague\n` +
+    `• ${CONFIG.triggers[0]} résume-moi la 2e guerre mondiale en 3 phrases`
+  );
+}
+
+// ────────────────────────────────────────────────────────────
 //  BOT WHATSAPP
 // ────────────────────────────────────────────────────────────
 async function startBot() {
@@ -247,7 +288,8 @@ async function startBot() {
         if (!text) continue;
 
         const lower = text.toLowerCase();
-        const hasPrefix = lower.startsWith(CONFIG.prefix);
+        const trigger = matchTrigger(lower); // le déclencheur "edith"/"!edith"/... ou null
+        const hasPrefix = Boolean(trigger);
 
         // Numéro de l'expéditeur (pour le filtre owner et les logs).
         const senderJid = isGroup ? msg.key.participant || "" : chatId;
@@ -258,8 +300,8 @@ async function startBot() {
         // Décider si on doit répondre.
         let shouldReply = false;
         if (fromMe) {
-          // Message envoyé depuis le téléphone du bot : on répond UNIQUEMENT si
-          // autorisé ET avec le préfixe. Les réponses du bot n'ont pas de préfixe
+          // Message envoyé depuis le téléphone du bot : on répond UNIQUEMENT avec la
+          // commande. Les réponses du bot ne commencent pas par un déclencheur
           // => aucune boucle possible.
           shouldReply = CONFIG.allowSelf && hasPrefix;
         } else {
@@ -269,9 +311,29 @@ async function startBot() {
         }
         if (!shouldReply) continue;
 
-        // On enlève le préfixe du texte envoyé à l'IA.
-        if (hasPrefix) text = text.slice(CONFIG.prefix.length).trim();
-        if (!text) text = "Bonjour";
+        // On enlève le déclencheur du texte.
+        if (trigger) text = text.slice(trigger.length).trim();
+
+        // Commandes spéciales.
+        const cmd = text.toLowerCase();
+        if (["help", "aide", "?", "menu", "commandes"].includes(cmd)) {
+          await sock.sendMessage(chatId, { text: helpText() }, { quoted: msg });
+          console.log(`ℹ️  [${isGroup ? "groupe" : "privé"}] ${senderNumber}: help`);
+          continue;
+        }
+        if (["reset", "clear", "reinitialiser", "réinitialiser", "oublie"].includes(cmd)) {
+          history.delete(chatId);
+          await sock.sendMessage(
+            chatId,
+            { text: "🧹 C'est effacé, on repart de zéro. De quoi tu veux parler ?" },
+            { quoted: msg }
+          );
+          console.log(`♻️  [${isGroup ? "groupe" : "privé"}] ${senderNumber}: reset`);
+          continue;
+        }
+
+        // Message vide (juste "edith" tout seul) => petit accueil.
+        if (!text) text = "Salut ! Présente-toi en une phrase.";
 
         // Indicateur "en train d'écrire".
         await sock.sendPresenceUpdate("composing", chatId);
