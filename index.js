@@ -16,11 +16,8 @@ const CONFIG = {
   // Dossier où la session WhatsApp est sauvegardée (disque persistant Render).
   authDir: process.env.AUTH_DIR || "./auth_info",
 
-  // Clé API Groq (obligatoire).
-  groqApiKey: process.env.GROQ_API_KEY || "",
-
-  // Modèle Groq utilisé.
-  groqModel: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+  // Fournisseur d'IA : "groq" (défaut) ou "huggingface".
+  aiProvider: (process.env.AI_PROVIDER || "groq").toLowerCase(),
 
   // Nom de ton assistant.
   botName: process.env.BOT_NAME || "EDITH",
@@ -64,13 +61,34 @@ Si on te demande quelque chose de factuel que tu ne sais pas, tu le dis honnête
   port: process.env.PORT || 3000,
 };
 
+// ────────────────────────────────────────────────────────────
+//  FOURNISSEURS D'IA (tous compatibles OpenAI : même format d'appel)
+// ────────────────────────────────────────────────────────────
+const PROVIDERS = {
+  groq: {
+    label: "Groq",
+    url: "https://api.groq.com/openai/v1/chat/completions",
+    key: process.env.GROQ_API_KEY || "",
+    model: process.env.GROQ_MODEL || "openai/gpt-oss-20b",
+  },
+  huggingface: {
+    label: "Hugging Face",
+    url: "https://router.huggingface.co/v1/chat/completions",
+    key: process.env.HF_TOKEN || "",
+    // Format modèle : "org/Modele" ou "org/Modele:provider" (ex ":hf-inference").
+    model: process.env.HF_MODEL || "meta-llama/Llama-3.1-8B-Instruct",
+  },
+};
+
+const AI = PROVIDERS[CONFIG.aiProvider] || PROVIDERS.groq;
+
 // Mémoire courte par conversation (RAM). Se vide au redémarrage, c'est normal.
 const history = new Map();
 
 // ────────────────────────────────────────────────────────────
-//  APPEL À GROQ
+//  APPEL À L'IA
 // ────────────────────────────────────────────────────────────
-async function askGroq(chatId, userText) {
+async function askAI(chatId, userText) {
   const past = history.get(chatId) || [];
 
   const messages = [
@@ -79,14 +97,14 @@ async function askGroq(chatId, userText) {
     { role: "user", content: userText },
   ];
 
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  const res = await fetch(AI.url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${CONFIG.groqApiKey}`,
+      Authorization: `Bearer ${AI.key}`,
     },
     body: JSON.stringify({
-      model: CONFIG.groqModel,
+      model: AI.model,
       messages,
       temperature: 0.7,
       max_tokens: 1024,
@@ -95,7 +113,7 @@ async function askGroq(chatId, userText) {
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Groq ${res.status}: ${errText}`);
+    throw new Error(`${AI.label} ${res.status}: ${errText}`);
   }
 
   const data = await res.json();
@@ -131,10 +149,12 @@ function extractText(msg) {
 //  BOT WHATSAPP
 // ────────────────────────────────────────────────────────────
 async function startBot() {
-  if (!CONFIG.groqApiKey) {
-    console.error("❌ GROQ_API_KEY manquante. Ajoute-la dans les variables d'environnement.");
+  if (!AI.key) {
+    const varName = CONFIG.aiProvider === "huggingface" ? "HF_TOKEN" : "GROQ_API_KEY";
+    console.error(`❌ ${varName} manquante. Ajoute-la dans les variables d'environnement.`);
     process.exit(1);
   }
+  console.log(`🧠 Cerveau IA : ${AI.label} (modèle : ${AI.model})`);
 
   const { state, saveCreds } = await useMultiFileAuthState(CONFIG.authDir);
   const { version } = await fetchLatestBaileysVersion();
@@ -256,7 +276,7 @@ async function startBot() {
         // Indicateur "en train d'écrire".
         await sock.sendPresenceUpdate("composing", chatId);
 
-        const reply = await askGroq(chatId, text);
+        const reply = await askAI(chatId, text);
 
         await sock.sendMessage(chatId, { text: reply }, { quoted: msg });
         console.log(`💬 [${isGroup ? "groupe" : "privé"}] ${senderNumber}: ${text.slice(0, 40)}...`);

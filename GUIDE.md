@@ -142,6 +142,41 @@ avec un ton complice et un peu d'humour. Tu vas droit au but.
 
 ---
 
+## 🔁 Changer de cerveau IA (Groq ⇄ Hugging Face)
+
+EDITH peut utiliser **Groq** (défaut) ou **Hugging Face**. Les deux s'appellent de la
+même façon, tu bascules juste avec des variables d'environnement.
+
+### Utiliser Hugging Face
+
+1. Crée un **token** sur [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens/new?ownUserPermissions=inference.serverless.write&tokenType=fineGrained)
+   avec la permission **"Inference Providers"** (le token commence par `hf_`).
+2. Dans Render → **Environment**, mets :
+
+   | Variable | Valeur |
+   |---|---|
+   | `AI_PROVIDER` | `huggingface` |
+   | `HF_TOKEN` | ton token `hf_...` |
+   | `HF_MODEL` | `meta-llama/Llama-3.1-8B-Instruct` (ou un autre, voir ci-dessous) |
+
+3. **Save Changes** → Render redémarre. Dans les logs tu verras
+   `🧠 Cerveau IA : Hugging Face (modèle : ...)`.
+
+**Choix du modèle HF** : format `org/Modèle` ou `org/Modèle:fournisseur`
+(ex `deepseek-ai/DeepSeek-V4-Flash-0731:baseten`). La liste des modèles et des
+fournisseurs est sur [huggingface.co/models](https://huggingface.co/models?inference_provider=all).
+
+> ⚠️ **Quota** : le tier gratuit de Hugging Face donne un **petit crédit mensuel**
+> d'inférence, ensuite c'est payant. Pour un usage perso léger ça passe, mais pour
+> du volume, **Groq gratuit** est plus généreux. Tu peux revenir à Groq à tout
+> moment en remettant `AI_PROVIDER=groq`.
+
+### Revenir à Groq
+
+Remets simplement `AI_PROVIDER` = `groq` (ou supprime la variable) → Save.
+
+---
+
 ## 🆘 Problèmes courants
 
 - **Pas de QR dans les logs** → attends 30 s, rafraîchis les logs. Vérifie que le
